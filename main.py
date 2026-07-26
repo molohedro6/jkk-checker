@@ -71,7 +71,15 @@ print("JKK自動巡回プログラムを開始します...")
 # 2. スクレイピング実行
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
-    page = browser.new_page()
+    
+    context = browser.new_context()
+    
+    # 画像、CSS、フォントの通信をすべてブロック（高速化）
+    context.route("**/*", lambda route: route.abort() 
+                  if route.request.resource_type in ["image", "stylesheet", "font"] 
+                  else route.continue_())
+    
+    page = context.new_page()
 
     page.goto(LOGIN_URL)
     with page.expect_popup() as popup_info:
