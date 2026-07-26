@@ -2,9 +2,13 @@ name: JKK Auto Checker
 
 on:
   schedule:
-    # 毎時00分（日本時間の毎時00分）に自動実行
+    # 毎時00分に自動実行
     - cron: '0 * * * *'
-  workflow_dispatch: # 手動実行ボタンも用意
+  workflow_dispatch:
+
+# GitHubへの自動書き込み権限を付与
+permissions:
+  contents: write
 
 jobs:
   run-checker:
@@ -12,10 +16,12 @@ jobs:
 
     steps:
       - name: リポジトリのチェックアウト
-        uses: actions/checkout@v4   # v3 から v4 へ変更
+        uses: actions/checkout@v4
 
       - name: Pythonのセットアップ
-        uses: actions/setup-python@v5  # v4 から v5 へ変更
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
       - name: ライブラリとPlaywrightブラウザのインストール
         run: |
@@ -25,3 +31,10 @@ jobs:
 
       - name: スクリプトの実行
         run: python main.py
+
+      - name: 履歴ファイルをリポジトリへ自動保存
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add seen_properties.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update seen properties" && git push)
