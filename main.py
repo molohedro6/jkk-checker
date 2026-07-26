@@ -1,3 +1,5 @@
+import json
+import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -9,7 +11,12 @@ GMAIL_USER = "abarth6522@gmail.com"
 GMAIL_APP_PASS = "varjtbrevzeibahr"
 TO_EMAIL = "abarth6522@gmail.com"
 
+# JKKログインページのURL
+LOGIN_URL = "https://www.to-kousya.or.jp/chintai/service/mypage_login.html"
+CACHE_FILE = "seen_properties.json"
+
 def send_email(subject, body_text):
+    """Gmail送信関数"""
     msg = MIMEMultipart()
     msg["From"] = GMAIL_USER
     msg["To"] = TO_EMAIL
@@ -25,6 +32,7 @@ def send_email(subject, body_text):
         print(f"▶ メール送信エラー: {e}")
 
 def get_properties(login_page, search_btn_name, category_title):
+    """物件取得処理"""
     print(f"\n--- 【{category_title}】の検索を開始します ---")
     
     login_page.locator(f'img[name="{search_btn_name}"]').click()
@@ -46,35 +54,26 @@ def get_properties(login_page, search_btn_name, category_title):
             if len(cols) > 1 and "住宅名" not in cols[1]:
                 items.append(cols)
 
-    result_text = f"=================== {category_title}（{len(items)}件） ===================\n"
-    if not items:
-        result_text += "現在、条件に合う空室物件はありません。\n"
-    else:
-        for i, cols in enumerate(items, start=1):
-            name = cols[1] if len(cols) > 1 else ""
-            area = cols[2] if len(cols) > 2 else ""
-            layout = cols[5] if len(cols) > 5 else ""
-            rent = cols[7] if len(cols) > 7 else ""
-            service_fee = cols[8] if len(cols) > 8 else ""
-            count = cols[9] if len(cols) > 9 else ""
-            
-            result_text += f"【{i}】{name} ({area})\n"
-            result_text += f"    間取り: {layout} | 家賃: {rent}円 | 共益費: {service_fee}円 | 募集: {count}戸\n"
-            result_text += "-" * 50 + "\n"
-
-    print(result_text)
-    return items, result_text
+    return items
 
 
-print("JKK自動巡回＆メール通知プログラムを開始します...")
-full_email_body = ""
+# 1. 過去の検索履歴を読み込み
+seen_keys = []
+if os.path.exists(CACHE_FILE):
+    try:
+        with open(CACHE_FILE, "r", encoding="utf-8") as f:
+            seen_keys = json.load(f)
+    except Exception as e:
+        print(f"履歴ファイルの読み込み失敗: {e}")
 
+print("JKK自動巡回プログラムを開始します...")
+
+# 2. スクレイピング実行
 with sync_playwright() as p:
-    # クラウド実行用に headless=True に変更
     browser = p.chromium.launch(headless=True)
     page = browser.new_page()
 
-    page.goto("https://www.to-kousya.or.jp/chintai/service/mypage_login.html")
+    page.goto(LOGIN_URL)
     with page.expect_popup() as popup_info:
         page.get_by_role("link", name="こちら").first.click()
     
@@ -87,22 +86,73 @@ with sync_playwright() as p:
     login_page.wait_for_load_state()
 
     # 一般賃貸
-    items_1, text_1 = get_properties(login_page, "search1", "一般賃貸住宅")
-    full_email_body += text_1 + "\n\n"
+    items_1 = get_properties(login_page, "search1", "一般賃貸住宅")
 
     # マイページ戻り
     login_page.locator("#Image_home").click()
     login_page.wait_for_load_state()
 
     # 都民住宅
-    items_2, text_2 = get_properties(login_page, "search5", "東京都施行型都民住宅")
-    full_email_body += text_2 + "\n\n"
+    items_2 = get_properties(login_page, "search5", "東京都施行型都民住宅")
 
     browser.close()
 
-# メール送信
-total_count = len(items_1) + len(items_2)
-subject = f"【JKK空室通知】合計 {total_count} 件の物件が見つかりました"
+# 3. 差分チェック処理
+all_categories = [
+    ("一般賃貸住宅", items_1),
+    ("東京都施行型都民住宅", items_2)
+]
 
-send_email(subject, full_email_body)
+current_keys = []
+new_items_body = ""
+new_count = 0
+
+for category_title, items in all_categories:
+    cat_new_items = []
+    for cols in items:
+        name = cols[1] if len(cols) > 1 else ""
+        area = cols[2] if len(cols) > 2 else ""
+        layout = cols[5] if len(cols) > 5 else ""
+        rent = cols[7] if len(cols) > 7 else ""
+        service_fee = cols[8] if len(cols) > 8 else ""
+        count = cols[9] if len(cols) > 9 else ""
+
+        # 物件を一意に識別するキー（カテゴリ_物件名_間取り_家賃）
+        unique_key = f"{category_title}_{name}_{layout}_{rent}"
+        current_keys.append(unique_key)
+
+        # 履歴になければ新着とみなす
+        if unique_key not in seen_keys:
+            cat_new_items.append((name, area, layout, rent, service_fee, count))
+            new_count += 1
+
+    if cat_new_items:
+        new_items_body += f"=================== 【新着】{category_title}（{len(cat_new_items)}件） ===================\n"
+        for i, (name, area, layout, rent, service_fee, count) in enumerate(cat_new_items, start=1):
+            new_items_body += f"【{i}】{name} ({area})\n"
+            new_items_body += f"    間取り: {layout} | 家賃: {rent}円 | 共益費: {service_fee}円 | 募集: {count}戸\n"
+            new_items_body += "-" * 50 + "\n"
+        new_items_body += "\n"
+
+# 4. 今回の検索結果を履歴ファイルに書き込み
+try:
+    with open(CACHE_FILE, "w", encoding="utf-8") as f:
+        json.dump(current_keys, f, ensure_ascii=False, indent=2)
+    print("▶ 最新の検索履歴を保存しました。")
+except Exception as e:
+    print(f"▶ 履歴保存エラー: {e}")
+
+# 5. メール送信判断（新着がある場合のみ通知）
+if new_count > 0:
+    subject = f"【JKK新着通知】新たに {new_count} 件の物件が掲載されました！"
+    
+    full_email_body = f"JKK netに新しい空室物件が掲載されました。\n\n"
+    full_email_body += new_items_body
+    full_email_body += f"\n▼ JKK net ログインページ\n{LOGIN_URL}\n"
+
+    print(f"新着物件が {new_count} 件検出されました。メールを送信します...")
+    send_email(subject, full_email_body)
+else:
+    print("新着物件はありませんでした（通知をスキップします）。")
+
 print("\nすべての処理が完了しました！")
