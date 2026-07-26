@@ -2,11 +2,12 @@ name: JKK Auto Checker
 
 on:
   schedule:
-    # 毎時00分に自動実行
-    - cron: '0 * * * *'
+    # 日本時間 9:00〜17:30（UTC 0:00〜8:30）の30分おき
+    - cron: '0,30 0-8 * * *'
+    # 日本時間 18:00（UTC 9:00）の最終実行
+    - cron: '0 9 * * *'
   workflow_dispatch:
 
-# GitHubへの自動書き込み権限を付与
 permissions:
   contents: write
 
