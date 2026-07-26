@@ -12,12 +12,10 @@ jobs:
 
     steps:
       - name: リポジトリのチェックアウト
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4   # v3 から v4 へ変更
 
       - name: Pythonのセットアップ
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+        uses: actions/setup-python@v5  # v4 から v5 へ変更
 
       - name: ライブラリとPlaywrightブラウザのインストール
         run: |
