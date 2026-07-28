@@ -2,10 +2,10 @@ name: JKK Auto Checker
 
 on:
   schedule:
-    # 日本時間 9:00〜17:30（UTC 0:00〜8:30）の30分おき
-    - cron: '0,30 0-8 * * *'
-    # 日本時間 18:00（UTC 9:00）の最終実行
-    - cron: '0 9 * * *'
+    # 日本時間 9:13〜17:43（UTC 0:13〜8:43）の30分おき（混雑回避）
+    - cron: '13,43 0-8 * * *'
+    # 日本時間 18:13（UTC 9:13）の最終実行
+    - cron: '13 9 * * *'
   workflow_dispatch:
 
 permissions:
@@ -45,6 +45,11 @@ jobs:
         run: playwright install chromium
 
       - name: スクリプトの実行
+        env:
+          JKK_USER_ID: ${{ secrets.JKK_USER_ID }}
+          JKK_USER_PASS: ${{ secrets.JKK_USER_PASS }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }}
         run: python main.py
 
       - name: 履歴ファイルをリポジトリへ自動保存
