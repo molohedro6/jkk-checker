@@ -5,11 +5,12 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from playwright.sync_api import sync_playwright
 
-USER_ID = "9c16a435"
-USER_PASS = "k$5BS5pT7RErbTt"
-GMAIL_USER = "abarth6522@gmail.com"
-GMAIL_APP_PASS = "varjtbrevzeibahr"
-TO_EMAIL = "abarth6522@gmail.com"
+# GitHub Secretsから安全に情報を読み込む
+USER_ID = os.environ.get("JKK_USER_ID")
+USER_PASS = os.environ.get("JKK_USER_PASS")
+GMAIL_USER = os.environ.get("GMAIL_USER")
+GMAIL_APP_PASS = os.environ.get("GMAIL_APP_PASS")
+TO_EMAIL = os.environ.get("GMAIL_USER")
 
 # JKKログインページのURL
 LOGIN_URL = "https://www.to-kousya.or.jp/chintai/service/mypage_login.html"
