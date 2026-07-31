@@ -52,11 +52,13 @@ def get_properties(login_page, search_btn_name, category_title):
         tds = row.locator("> td").all()
         if len(tds) >= 8:
             cols = [td.inner_text().strip().replace('\n', ' ') for td in tds]
-            if len(cols) > 1 and "住宅名" not in cols[1]:
+            if len(cols) > 1:
+                # 表のヘッダー行（一番上のタイトル行）は除外する
+                if "住宅名" in cols[1] or "地域" in cols[1]:
+                    continue
                 items.append(cols)
 
     return items
-
 
 # 1. 過去の検索履歴を読み込み
 seen_keys = []
@@ -72,7 +74,6 @@ print("JKK自動巡回プログラムを開始します...")
 # 2. スクレイピング実行
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
-    
     context = browser.new_context()
     
     # 画像、CSS、フォントの通信をすべてブロック（高速化）
@@ -119,12 +120,22 @@ new_count = 0
 for category_title, items in all_categories:
     cat_new_items = []
     for cols in items:
-        name = cols[1] if len(cols) > 1 else ""
-        area = cols[2] if len(cols) > 2 else ""
-        layout = cols[5] if len(cols) > 5 else ""
-        rent = cols[7] if len(cols) > 7 else ""
-        service_fee = cols[8] if len(cols) > 8 else ""
-        count = cols[9] if len(cols) > 9 else ""
+        # カテゴリごとにテーブルの列構成が違うため、読み取り方を変える
+        if category_title == "一般賃貸住宅":
+            name = cols[1] if len(cols) > 1 else ""
+            area = cols[2] if len(cols) > 2 else ""
+            layout = cols[5] if len(cols) > 5 else ""
+            rent = cols[7] if len(cols) > 7 else ""
+            service_fee = cols[8] if len(cols) > 8 else ""
+            count = cols[9] if len(cols) > 9 else ""
+        elif category_title == "東京都施行型都民住宅":
+            # 都民住宅は物件名が出ないため「地域」を名前に設定
+            name = f"都民住宅（{cols[1]}）" if len(cols) > 1 else "都民住宅"
+            area = cols[1] if len(cols) > 1 else ""
+            layout = cols[2] if len(cols) > 2 else ""
+            rent = cols[4] if len(cols) > 4 else ""
+            service_fee = cols[5] if len(cols) > 5 else ""
+            count = cols[6] if len(cols) > 6 else ""
 
         # 物件を一意に識別するキー（カテゴリ_物件名_間取り_家賃）
         unique_key = f"{category_title}_{name}_{layout}_{rent}"
