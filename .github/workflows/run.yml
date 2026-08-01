@@ -57,4 +57,9 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add seen_properties.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update seen properties" && git push)
+          if git diff --staged --quiet; then
+            echo "変更がないため保存をスキップします"
+          else
+            git commit -m "Update seen properties"
+            git push origin HEAD
+          fi
