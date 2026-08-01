@@ -1,11 +1,6 @@
 name: JKK Auto Checker
 
 on:
-  schedule:
-    # 日本時間 9:13〜17:43（UTC 0:13〜8:43）の30分おき（混雑回避）
-    - cron: '13,43 0-8 * * *'
-    # 日本時間 18:13（UTC 9:13）の最終実行
-    - cron: '13 9 * * *'
   workflow_dispatch:
 
 permissions:
@@ -26,23 +21,12 @@ jobs:
           cache: 'pip'
 
       - name: ライブラリのインストール
+        run: pip install -r requirements.txt
+
+      - name: Playwrightブラウザのインストール
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Playwrightブラウザのキャッシュ設定
-        uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('**/requirements.txt') }}
-
-      - name: システム依存ライブラリのインストール
-        run: playwright install-deps chromium
-
-      - name: Playwrightブラウザのダウンロード（キャッシュがない時のみ）
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: playwright install chromium
+          playwright install chromium
+          playwright install-deps chromium
 
       - name: スクリプトの実行
         env:
