@@ -52,11 +52,11 @@ def get_jkk_properties(login_page, search_btn_name, category_title):
     all_rows = login_page.locator("table tr").all()
     for row in all_rows:
         tds = row.locator("> td").all()
-        if len(tds) >= 8:
+        if len(tds) >= 7:  # 列が少ない場合も考慮して条件を 8 から 7 に変更
             cols = [td.inner_text().strip().replace('\n', ' ') for td in tds]
             if len(cols) > 1:
-                # ヘッダー行を除外
-                if "住宅名" in cols[1] or "地域" in cols[1]:
+                # 一般賃貸と都民住宅、両方のヘッダー特有の文字が含まれていたらスキップ
+                if "住宅名" in cols[1] or "地域" in cols[1] or "間取り" in cols[1]:
                     continue
                 items.append(cols)
     return items
@@ -197,12 +197,21 @@ for category_title, items, cat_type in all_categories:
             unique_key = f"jkk_gen_{name}_{layout}_{rent}"
             
         elif cat_type == "jkk_tom":
-            name = f"都民住宅（{cols[1]}）" if len(cols) > 1 else "都民住宅"
-            area = cols[1] if len(cols) > 1 else ""
-            layout = cols[2] if len(cols) > 2 else ""
-            rent = f"{cols[4]}円" if len(cols) > 4 else ""
-            service_fee = f"{cols[5]}円" if len(cols) > 5 else ""
-            count = cols[6] if len(cols) > 6 else ""
+            # 都民住宅は列の並びが違う（cols[1]=間取り、cols[3]=家賃、cols[5]=共益費、cols[6]=住所）
+            raw_name = cols[0] if len(cols) > 0 else ""
+            address = cols[6] if len(cols) > 6 else ""
+            
+            # 名前が空、または「詳細」等のボタン文字の場合は住所を物件名代わりにする
+            if raw_name in ["", "詳細", "選択"]:
+                name = f"都民住宅（{address}）"
+            else:
+                name = f"{raw_name}（{address}）"
+
+            layout = cols[1] if len(cols) > 1 else "不明"
+            rent = f"{cols[3]}円" if len(cols) > 3 else "不明"
+            service_fee = f"{cols[5]}円" if len(cols) > 5 else "不明"
+            count = "-" # 都民住宅リストには募集戸数がないためハイフン
+            
             unique_key = f"jkk_tom_{name}_{layout}_{rent}"
             
         elif cat_type == "toei":
@@ -229,7 +238,9 @@ for category_title, items, cat_type in all_categories:
         new_items_body += f"=================== 新着：{category_title}（{len(cat_new_items)}件） ===================\n"
         for i, (name, layout, rent, service_fee, count) in enumerate(cat_new_items, start=1):
             new_items_body += f"【{i}】{name}\n"
-            new_items_body += f"    間取り等: {layout} | 家賃: {rent} | 共益費: {service_fee} | 募集: {count}戸\n"
+            # countが "-" の場合は「戸」をつけない工夫
+            count_str = f"{count}戸" if count != "-" and "戸" not in count else count
+            new_items_body += f"    間取り等: {layout} | 家賃: {rent} | 共益費: {service_fee} | 募集: {count_str}\n"
             new_items_body += "-" * 50 + "\n"
         new_items_body += "\n"
 
