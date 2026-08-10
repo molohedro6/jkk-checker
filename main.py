@@ -197,20 +197,17 @@ for category_title, items, cat_type in all_categories:
             unique_key = f"jkk_gen_{name}_{layout}_{rent}"
             
         elif cat_type == "jkk_tom":
-            # 都民住宅は列の並びが違う（cols[1]=間取り、cols[3]=家賃、cols[5]=共益費、cols[6]=住所）
-            raw_name = cols[0] if len(cols) > 0 else ""
-            address = cols[6] if len(cols) > 6 else ""
+            # 都民住宅の実際の列順: [0]住宅名, [1]地域, [2]間取り, [3]床面積, [4]使用料(家賃), [5]共益費, [6]募集戸数
+            raw_name = cols[0] if len(cols) > 0 else "不明"
+            area = cols[1] if len(cols) > 1 else ""
             
-            # 名前が空、または「詳細」等のボタン文字の場合は住所を物件名代わりにする
-            if raw_name in ["", "詳細", "選択"]:
-                name = f"都民住宅（{address}）"
-            else:
-                name = f"{raw_name}（{address}）"
-
-            layout = cols[1] if len(cols) > 1 else "不明"
-            rent = f"{cols[3]}円" if len(cols) > 3 else "不明"
+            # 物件名に地域（区）をくっつけて見やすくする
+            name = f"{raw_name}（{area}）"
+            
+            layout = cols[2] if len(cols) > 2 else "不明"
+            rent = f"{cols[4]}円" if len(cols) > 4 else "不明"
             service_fee = f"{cols[5]}円" if len(cols) > 5 else "不明"
-            count = "-" # 都民住宅リストには募集戸数がないためハイフン
+            count = cols[6] if len(cols) > 6 else "-"
             
             unique_key = f"jkk_tom_{name}_{layout}_{rent}"
             
